@@ -1,0 +1,35 @@
+<resources>
+
+    <string name="permission_denied_message">Please grant usage stats permission</string>
+    <string name="usage_manager_not_available">UsageStatsManager is not available</string>
+    <string name="no_recent_apps">No recent apps in the last 2 hours</string>
+    <string name="error_retrieving_apps">Error retrieving recent apps</string>
+    <string name="today_date">Today</string>
+    <string name="screen_time_title">Screen Time</string>
+    <string name="total_screen_time">Total screen time today</string>
+    <string name="app_usage_today">App Usage Today</string>
+    <string name="no_screen_time">No Screen Time Recorded</string>
+    <string name="start_using_apps">Start using apps and your screen time will appear here</string>
+    <string name="refresh">Refresh</string>
+    <string name="app_name">Children App</string>
+    <!-- Add these to your strings.xml file -->
+    <string name="screen_time_limit_reached">Screen Time Limit Reached</string>
+    <string name="screen_time_limit_message">You\'ve reached your daily screen time limit. Your time will reset tomorrow.</string>
+    <string name="time_until_reset">Time until reset: 00:00:00</string>
+    <string name="screen_time_tip">Tip: Try reading a book, playing outside, or doing a creative activity while you wait!</string>
+    <string name="close_app">Close App</string>
+    <string name="timer_icon_description">Timer icon</string>
+    <string name="accessibility_service_description">This service monitors app usage and blocks apps when screen time limits are exceeded. It helps parents control their children\'s device usage.</string>
+    <string name="accessibility_service_description1">
+        NetGuard Kids App Blocking Service\n\n
+        This service monitors when blocked apps are opened and prevents access to them.
+        It helps parents control which apps their children can use by automatically
+        redirecting to a blocking screen when restricted apps are launched.\n\n
+        The service only monitors app launches and does not collect or store any personal data.
+    </string>
+
+    <string name="app_blocked_title">App Blocked</string>
+    <string name="app_blocked_message">NetGuard Kids has blocked this application.\n\nThis app has been restricted by your parent or guardian.</string>
+    <string name="go_home_button">Go to Home Screen</string>
+    <string name="auto_redirect_message">You will be redirected to home screen automatically</string>
+</resources>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Theme Colors -->
+    <color name="colorPrimary">#2196F3</color>
+    <color name="colorPrimaryDark">#1976D2</color>
+
+    <color name="colorPrimaryLight">#BB86FC</color>
+    <color name="colorAccent">#03DAC5</color>
+    <color name="colorBackground">#F5F5F5</color>
+    <color name="colorTextPrimary">#212121</color>
+    <color name="colorTextSecondary">#757575</color>
+
+
+    <!-- Blue Variants -->
+    <color name="blue">#2196F3</color>
+    <color name="light_blue">#90CAF9</color>
+    <color name="dark_blue">#1565C0</color>
+
+    <!-- Base Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="gray">#9E9E9E</color>
+    <color name="light_gray">#F5F5F5</color>
+
+    <!-- Background Colors -->
+    <color name="background_light">#F5F5F5</color>
+    <color name="circle_background">#F8F9FA</color>
+    <color name="circle_border">#E1E5E9</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+
+    <!-- Status Colors -->
+    <color name="red">#F44336</color>
+    <color name="green">#4CAF50</color>
+
+    <!-- Progress Colors -->
+    <color name="progress_background">#E0E0E0</color>
+
+    <!-- Special Effects -->
+    <color name="transparent_black">#80000000</color>
+
+    <!-- System Colors -->
+    <color name="status_bar_color">@color/colorPrimaryDark</color>
+    <color name="colorPrimary1">#4285F4</color>
+    <color name="colorSecondary">#3367D6</color>
+    <color name="colorBackground1">#FFFFFF</color>
+    <color name="colorText">#333333</color>
+    <color name="colorTextLight">#FFFFFF</color>
+    <color name="colorTextSecondary1">#757575</color>
+
+    <!-- App Blocked Activity Colors -->
+    <color name="blocked_background">#F5F5F5</color>
+    <color name="blocked_text_primary">#333333</color>
+    <color name="blocked_text_secondary">#666666</color>
+    <color name="blocked_icon_tint">#FF6B6B</color>
+    <color name="info_text">#555555</color>
+    <color name="info_icon_tint">#4A90E2</color>
+    <color name="home_button_text">#4A90E2</color>
+    <color name="footer_text">#888888</color>
+
+    <!-- Additional colors for backgrounds -->
+    <color name="emergency_red">#F44336</color>
+    <color name="emergency_red_pressed">#D32F2F</color>
+    <color name="primary_blue">#4A90E2</color>
+    <color name="primary_blue_pressed">#1976D2</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_border">#E0E0E0</color>
+    <color name="button_pressed_background">#E3F2FD</color>
+</resources>
