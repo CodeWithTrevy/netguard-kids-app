@@ -22,6 +22,8 @@
             android:padding="16dp">
 
             <!-- App Title -->
+
+            <!-- Email Address Input -->
             <TextView
                 android:id="@+id/appTitle"
                 android:layout_width="wrap_content"
@@ -32,7 +34,6 @@
                 android:textColor="@color/black"
                 android:textSize="30sp" />
 
-            <!-- Email Address Input -->
             <EditText
                 android:id="@+id/emailAddress"
                 android:layout_width="match_parent"
@@ -41,7 +42,8 @@
                 android:hint="Email address"
                 android:padding="12dp"
                 android:inputType="textEmailAddress"
-                android:drawablePadding="8dp" />
+                android:drawablePadding="8dp"
+                android:background="@drawable/rounded_edittext"/>
 
             <!-- Password Input -->
             <EditText
@@ -52,7 +54,8 @@
                 android:hint="Password"
                 android:inputType="textPassword"
                 android:padding="12dp"
-                android:drawablePadding="8dp" />
+                android:drawablePadding="8dp"
+                android:background="@drawable/rounded_edittext"/>
 
             <!-- Login Button -->
             <Button

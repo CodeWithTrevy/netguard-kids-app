@@ -1,6 +1,8 @@
 package com.iconbiztechnologies1.childrenapp
 
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -151,3 +153,4 @@ class AppBlockedActivity1 : AppCompatActivity() {
         setupAutoHome()
     }
 }
+

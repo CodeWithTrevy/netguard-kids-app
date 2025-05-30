@@ -12,8 +12,7 @@
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- Call permissions with hardware feature -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" /> <!-- Call permissions with hardware feature -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
     <uses-feature
@@ -54,7 +53,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ChildrenApp"
         tools:targetApi="31">
-
+        <activity
+            android:name=".UrlBlockedActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
         <!-- Activities -->
         <activity
             android:name=".AppBlockedActivity1"
@@ -94,9 +98,7 @@
             android:exported="true" />
         <activity
             android:name=".MainActivity"
-            android:exported="true" />
-
-        <!-- Launcher Activity -->
+            android:exported="true" /> <!-- Launcher Activity -->
         <activity
             android:name=".Splashscreen"
             android:exported="true">
@@ -105,22 +107,17 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-
-        <!-- Services -->
+        </activity> <!-- Services -->
         <service
             android:name=".AppMonitoringService"
             android:enabled="true"
             android:exported="false" />
-
         <service
             android:name=".AppUsageService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="dataSync"
             android:permission="android.permission.BIND_JOB_SERVICE" />
-
-
         <service
             android:name=".UnifiedAppBlockingAccessibilityService"
             android:enabled="true"
@@ -129,12 +126,11 @@
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
+
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
-        </service>
-
-        <!-- Boot receiver to start service on device boot -->
+        </service> <!-- Boot receiver to start service on device boot -->
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
@@ -147,7 +143,19 @@
                 <data android:scheme="package" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".MyDeviceAdminReceiver"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_receiver" />
 
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

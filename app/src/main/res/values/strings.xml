@@ -11,7 +11,7 @@
     <string name="no_screen_time">No Screen Time Recorded</string>
     <string name="start_using_apps">Start using apps and your screen time will appear here</string>
     <string name="refresh">Refresh</string>
-    <string name="app_name">Children App</string>
+    <string name="app_name">NetGuard Kids</string>
     <!-- Add these to your strings.xml file -->
     <string name="screen_time_limit_reached">Screen Time Limit Reached</string>
     <string name="screen_time_limit_message">You\'ve reached your daily screen time limit. Your time will reset tomorrow.</string>

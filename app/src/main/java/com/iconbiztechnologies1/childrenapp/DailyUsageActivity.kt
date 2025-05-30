@@ -1,5 +1,6 @@
 package com.iconbiztechnologies1.childrenapp
 
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Bundle
@@ -19,6 +20,8 @@ import java.util.concurrent.TimeUnit
 import android.widget.TextView
 import android.widget.ProgressBar
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import android.provider.Settings
+import androidx.appcompat.app.AlertDialog
 import kotlin.coroutines.suspendCoroutine
 
 class DailyUsageActivity : AppCompatActivity() {
@@ -294,6 +297,7 @@ class DailyUsageActivity : AppCompatActivity() {
         }
     }
 
+    // FIXED: Improved checkScreenTimeLimit method
     private fun checkScreenTimeLimit(appUsageData: Map<String, Long>, screenTimeSettings: ScreenTimeSettings?) {
         if (screenTimeSettings == null) {
             Log.d(TAG, "No screen time settings found, skipping limit check")
@@ -337,21 +341,121 @@ class DailyUsageActivity : AppCompatActivity() {
         if (shouldEnableBlocking) {
             Log.d(TAG, "🚫 ENABLING APP BLOCKING - Screen time limit exceeded!")
 
-            // Check if accessibility service is running
-            if (!AppBlockingAccessibilityService.isServiceRunning()) {
-                Log.w(TAG, "⚠️ Accessibility service is not running! User needs to enable it in settings.")
-                // You might want to show a dialog here to guide user to enable accessibility service
-            } else {
-                Log.d(TAG, "✅ Accessibility service is running, enabling blocking...")
+            // FIXED: Update Firebase first to enable blocking
+            updateFirebaseBlockingStatus(auth.currentUser?.uid ?: "", true, resetTime) {
+                // After Firebase update, also call the accessibility service
+                if (!UnifiedAppBlockingAccessibilityService.isServiceRunning()) {
+                    Log.w(TAG, "⚠️ Accessibility service is not running! User needs to enable it in settings.")
+                    // Show dialog to enable accessibility service
+                    showAccessibilityServiceDialog()
+                } else {
+                    Log.d(TAG, "✅ Accessibility service is running, enabling blocking...")
+                    UnifiedAppBlockingAccessibilityService.enableBlocking(this, resetTime)
+                }
             }
-
-            AppBlockingAccessibilityService.enableBlocking(this, resetTime)
         } else {
             Log.d(TAG, "✅ Screen time within limit, ensuring blocking is disabled")
-            AppBlockingAccessibilityService.disableBlocking(this)
+            updateFirebaseBlockingStatus(auth.currentUser?.uid ?: "", false, resetTime) {
+                UnifiedAppBlockingAccessibilityService.disableBlocking(this)
+            }
         }
     }
 
+    // NEW: Method to update Firebase blocking status
+    private fun updateFirebaseBlockingStatus(userId: String, isBlocked: Boolean, resetTime: String, onComplete: () -> Unit) {
+        if (userId.isEmpty()) {
+            Log.w(TAG, "UserId is empty, cannot update blocking status")
+            onComplete()
+            return
+        }
+
+        Log.d(TAG, "=== UPDATING FIREBASE BLOCKING STATUS ===")
+        Log.d(TAG, "User ID: $userId")
+        Log.d(TAG, "Is Blocked: $isBlocked")
+        Log.d(TAG, "Reset Time: $resetTime")
+
+        val updateData = mapOf(
+            "is_blocked" to isBlocked,
+            "reset_screen_time" to resetTime,
+            "blocking_updated_by" to "child_app",
+            "blocking_updated_at" to System.currentTimeMillis(),
+            "timestamp" to System.currentTimeMillis()
+        )
+
+        // Update all documents in ScreenTime collection where user_id matches
+        db.collection("ScreenTime")
+            .whereEqualTo("user_id", userId)
+            .get()
+            .addOnSuccessListener { documents ->
+                Log.d(TAG, "Found ${documents.size()} ScreenTime documents for blocking update")
+
+                if (!documents.isEmpty) {
+                    val batch = db.batch()
+                    var updateCount = 0
+
+                    for (document in documents) {
+                        batch.update(document.reference, updateData)
+                        updateCount++
+                        Log.d(TAG, "Added document ${document.id} to blocking batch update")
+                    }
+
+                    batch.commit()
+                        .addOnSuccessListener {
+                            Log.d(TAG, "✅ Successfully updated blocking status in $updateCount ScreenTime documents!")
+                            onComplete()
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e(TAG, "❌ Error updating blocking status in Firebase", e)
+                            onComplete()
+                        }
+                } else {
+                    Log.w(TAG, "⚠️ No ScreenTime documents found for blocking update")
+                    onComplete()
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Error querying ScreenTime collection for blocking update", e)
+                onComplete()
+            }
+    }
+
+    // NEW: Method to show accessibility service dialog
+    private fun showAccessibilityServiceDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Enable Accessibility Service")
+            .setMessage("To enforce screen time limits, please enable the accessibility service in Settings > Accessibility > Children App.")
+            .setPositiveButton("Open Settings") { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error opening accessibility settings", e)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    // DEBUGGING: Add this method for testing
+    private fun testBlockingSystem() {
+        Log.d(TAG, "=== TESTING BLOCKING SYSTEM ===")
+
+        // Test accessibility service
+        val isServiceRunning = UnifiedAppBlockingAccessibilityService.isServiceRunning()
+        Log.d(TAG, "Accessibility service running: $isServiceRunning")
+
+        // Test Firebase connectivity
+        val user = auth.currentUser
+        Log.d(TAG, "Current user: ${user?.uid}")
+
+        // Test blocking call
+        if (isServiceRunning) {
+            UnifiedAppBlockingAccessibilityService.enableBlocking(this, "12:30")
+            Log.d(TAG, "Sent enable blocking command")
+        } else {
+            Log.e(TAG, "Cannot test - accessibility service not running")
+        }
+    }
     private fun updateUsedScreenTime(userId: String, usedMinutes: Int, onComplete: (() -> Unit)? = null) {
         if (userId.isEmpty()) {
             Log.w(TAG, "UserId is empty, cannot update screen time")

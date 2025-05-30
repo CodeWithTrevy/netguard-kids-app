@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <!-- Keep this empty or add <force-lock /> if you want a minimal policy -->
+        <force-lock />
+    </uses-policies>
+</device-admin>
