@@ -1,3 +1,4 @@
+// File: AdminSettings.kt
 package com.iconbiztechnologies1.childrenapp
 
 import android.app.admin.DevicePolicyManager
@@ -8,21 +9,16 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-// If you use ViewCompat and WindowInsetsCompat, keep these imports
-// import androidx.core.view.ViewCompat
-// import androidx.core.view.WindowInsetsCompat
 
 class AdminSettings : AppCompatActivity() {
 
     private lateinit var devicePolicyManager: DevicePolicyManager
     private lateinit var adminComponentName: ComponentName
     private lateinit var enableAdminLauncher: ActivityResultLauncher<Intent>
-
-    private lateinit var activateButton: Button // Using your button ID
+    private lateinit var activateButton: Button
 
     companion object {
         private const val TAG = "AdminSettings"
@@ -30,41 +26,36 @@ class AdminSettings : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge() // You had this
-        setContentView(R.layout.activity_admin_settings) // Your layout
+        setContentView(R.layout.activity_admin_settings)
 
         // Initialize Device Admin components
         devicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        // Ensure MyDeviceAdminReceiver is the correct name and in your package
         adminComponentName = ComponentName(this, MyDeviceAdminReceiver::class.java)
 
-        // Register for activity result for Device Admin activation
+        // Register for activity result
         enableAdminLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
                 Log.d(TAG, "Device Admin Enabled by user")
-                Toast.makeText(this, "Device Admin Enabled Successfully!", Toast.LENGTH_SHORT).show()
-                updateButtonState() // Update button text/state
-                navigateToNextScreen() // Proceed to the next step/activity
+                Toast.makeText(this, "Device Admin Enabled Successfully! Final step...", Toast.LENGTH_SHORT).show()
+                updateButtonState()
+                navigateToNextScreen()
             } else {
                 Log.d(TAG, "Device Admin Enabling Cancelled or Failed")
-                Toast.makeText(this, "Device Admin activation is required. Please enable it to continue.", Toast.LENGTH_LONG).show()
-                updateButtonState() // Reflect that admin is still not active
+                Toast.makeText(this, "Device Admin activation is required to continue.", Toast.LENGTH_LONG).show()
+                updateButtonState()
             }
         }
 
-        activateButton = findViewById<Button>(R.id.button7) // Your button ID from XML
+        activateButton = findViewById(R.id.button7)
         activateButton.setOnClickListener {
             handleActivationClick()
         }
 
-        // Initial button state update
         updateButtonState()
     }
 
     override fun onResume() {
         super.onResume()
-        // Update button state in case the user manually changed admin status
-        // from settings and came back to the app, or if activation was pending.
         updateButtonState()
     }
 
@@ -74,10 +65,9 @@ class AdminSettings : AppCompatActivity() {
 
     private fun updateButtonState() {
         if (isAdminActive()) {
-            activateButton.text = "Admin Active (Continue)" // Or just "Continue"
-            // You might want to change behavior or just text
+            activateButton.text = "Setup Complete (Continue)"
         } else {
-            activateButton.text = "Activate Now"
+            activateButton.text = "Activate Final Protection"
         }
     }
 
@@ -94,7 +84,6 @@ class AdminSettings : AppCompatActivity() {
     private fun requestAdminPrivileges() {
         val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
         intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponentName)
-        // This explanation is shown on the system screen when asking for permission.
         intent.putExtra(
             DevicePolicyManager.EXTRA_ADD_EXPLANATION,
             "To protect your child, this app needs Device Administrator permission. This helps prevent easy uninstallation and ensures parental controls remain active."
@@ -103,11 +92,10 @@ class AdminSettings : AppCompatActivity() {
     }
 
     private fun navigateToNextScreen() {
-        // Navigate to DailyUsageActivity or your next setup screen
+        // SOLUTION: We launch DailyUsageActivity with NO extras.
+        // It will now know to get the device ID from the local DeviceIdentityManager.
         val intent = Intent(this, DailyUsageActivity::class.java)
         startActivity(intent)
-        // Optional: finish this AdminSettings activity so the user can't easily go back
-        // to this specific setup step if it's part of an onboarding flow.
-        finish()
+        finish() // Finish this setup activity
     }
 }
