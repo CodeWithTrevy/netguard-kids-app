@@ -4,205 +4,147 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.*
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
 
 class AppBlockedActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "AppBlockedActivity"
-        private const val SCREEN_TIME_COLLECTION = "ScreenTime"
     }
 
-    private lateinit var blockedMessageText: TextView
-    private lateinit var resetTimeText: TextView
+    // --- Views ---
+    private lateinit var titleText: TextView
+    private lateinit var detailsText: TextView
     private lateinit var emergencyCallButton: Button
     private lateinit var homeButton: Button
 
+    // --- State ---
     private val activityScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val firestore = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
     private var screenTimeListener: ListenerRegistration? = null
-
-    // Activity state tracking
     private var isActivityFinishing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_app_blocked)
-
-        Log.d(TAG, "AppBlockedActivity created")
+        Log.d(TAG, "AppBlockedActivity created for Screen Time.")
 
         initViews()
+        displayBlockMessage()
         setupClickListeners()
         setupBackPressedHandler()
         setupScreenTimeListener()
-
-        // Process intent data
-        processIntentData()
+        scheduleFinishAtMidnight()
     }
 
     private fun initViews() {
-        blockedMessageText = findViewById(R.id.blockedMessageText)
-        resetTimeText = findViewById(R.id.resetTimeText)
+        titleText = findViewById(R.id.blockedMessageText)
+        detailsText = findViewById(R.id.resetTimeText)
         emergencyCallButton = findViewById(R.id.emergencyCallButton)
         homeButton = findViewById(R.id.homeButton)
 
-        // Remove action bar
         supportActionBar?.hide()
-
-        // Make activity full screen and non-dismissible
-        window.setFlags(
-            android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN
-        )
-
-        // Keep screen on to prevent lock screen interference
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-        // Set initial message
-        blockedMessageText.text = "Screen Time Limit Reached"
-        resetTimeText.text = "Loading reset time..."
     }
 
-    private fun processIntentData() {
-        val blockedPackage = intent.getStringExtra("blocked_package")
-        val blockedAppName = intent.getStringExtra("blocked_app_name")
-        val resetTime = intent.getStringExtra("reset_time")
-
-        Log.d(TAG, "Intent data - Package: $blockedPackage, App: $blockedAppName, Reset: $resetTime")
-
-        // Update UI with intent data if available
-        if (!blockedAppName.isNullOrEmpty()) {
-            blockedMessageText.text = "Access to $blockedAppName is blocked"
-        }
-
-        if (!resetTime.isNullOrEmpty()) {
-            resetTimeText.text = "Apps will be available again at $resetTime"
-        }
+    private fun displayBlockMessage() {
+        Log.d(TAG, "Displaying screen time block. Reset is at midnight.")
+        titleText.text = "Daily Time Limit Reached"
+        detailsText.text = "Access will be restored after midnight."
+        detailsText.visibility = View.VISIBLE
     }
 
     private fun setupClickListeners() {
-        emergencyCallButton.setOnClickListener {
-            makeEmergencyCall()
-        }
-
-        homeButton.setOnClickListener {
-            goToHomeScreen()
-        }
+        emergencyCallButton.setOnClickListener { makeEmergencyCall() }
+        homeButton.setOnClickListener { goToHomeScreen() }
     }
 
     private fun setupBackPressedHandler() {
-        // Handle back button press using the new OnBackPressedDispatcher
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                // Prevent back button from dismissing the blocking screen
-                Log.d(TAG, "Back button pressed - redirecting to home")
+                Log.d(TAG, "Back button pressed - redirecting to home.")
                 goToHomeScreen()
             }
         })
     }
 
     private fun setupScreenTimeListener() {
-        val user = auth.currentUser
-        if (user == null) {
-            Log.e(TAG, "User not authenticated")
-            resetTimeText.text = "Reset time not available - Please login"
+        val user = FirebaseAuth.getInstance().currentUser ?: run {
+            Log.e(TAG, "No authenticated user found")
             return
         }
 
-        Log.d(TAG, "Setting up real-time screen time listener for user: ${user.uid}")
+        val deviceId = DeviceIdentityManager.getDeviceID(this)
+        if (deviceId.isNullOrEmpty()) {
+            Log.e(TAG, "Device ID is empty or null")
+            return
+        }
 
-        // Listen to real-time changes in screen time data
-        screenTimeListener = firestore.collection(SCREEN_TIME_COLLECTION)
-            .whereEqualTo("user_id", user.uid)
-            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(1)
-            .addSnapshotListener { snapshots, error ->
-                if (error != null) {
-                    Log.e(TAG, "Error listening to screen time updates", error)
-                    resetTimeText.text = "Error loading reset time"
-                    return@addSnapshotListener
-                }
+        Log.d(TAG, "Setting up real-time screen time listener.")
 
-                if (snapshots != null && !snapshots.isEmpty) {
-                    val document = snapshots.documents[0]
-                    val isBlocked = document.getBoolean("is_blocked") ?: false
-                    val resetTime = document.getString("reset_screen_time") ?: ""
+        val docRef = FirebaseFirestore.getInstance().collection("ScreenTime")
+            .document(user.uid)
+            .collection("devices")
+            .document(deviceId)
 
-                    Log.d(TAG, "Screen time update received - Blocked: $isBlocked, Reset time: $resetTime")
+        screenTimeListener = docRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e(TAG, "Error listening to screen time updates", error)
+                return@addSnapshotListener
+            }
 
-                    if (!isBlocked) {
-                        // Screen time blocking has been disabled - finish this activity
-                        Log.d(TAG, "Screen time blocking disabled, finishing activity")
-                        finishBlockingActivity()
-                    } else {
-                        // Update UI with latest reset time
-                        if (resetTime.isNotEmpty()) {
-                            resetTimeText.text = "Apps will be available again at $resetTime"
+            if (snapshot != null && snapshot.exists()) {
+                val dailyLimit = snapshot.getLong("screen_time_total_minutes") ?: 0L
+                val currentUsage = snapshot.getLong("current_usage_minutes") ?: 0L
+                val isLimitExceeded = dailyLimit > 0 && currentUsage >= dailyLimit
 
-                            // Check if reset time has already passed
-                            checkIfResetTimePassed(resetTime)
-                        } else {
-                            resetTimeText.text = "Reset time not set"
-                        }
-                    }
-                } else {
-                    Log.d(TAG, "No screen time documents found, finishing activity")
+                Log.d(TAG, "Screen time update: Usage=$currentUsage, Limit=$dailyLimit, Exceeded=$isLimitExceeded")
+
+                // If the limit is no longer exceeded (e.g., parent increased it), finish.
+                if (!isLimitExceeded) {
+                    Log.i(TAG, "Screen time limit no longer exceeded. Finishing blocking activity.")
                     finishBlockingActivity()
                 }
+            } else {
+                // If the doc is deleted, assume no more blocking
+                Log.w(TAG, "Screen time document no longer found, finishing activity.")
+                finishBlockingActivity()
             }
+        }
     }
 
-    private fun checkIfResetTimePassed(resetTime: String) {
+    private fun scheduleFinishAtMidnight() {
         activityScope.launch {
             try {
-                val format = SimpleDateFormat("HH:mm", Locale.getDefault())
-                val currentTime = Calendar.getInstance()
-                val currentTimeStr = format.format(currentTime.time)
-                val resetCalendar = Calendar.getInstance()
+                val now = Calendar.getInstance()
+                val midnight = Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_YEAR, 1)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 100) // Add a small buffer
+                }
 
-                Log.d(TAG, "Checking reset time - Current: $currentTimeStr, Reset: $resetTime")
-
-                // Parse reset time
-                val resetDate = format.parse(resetTime) ?: return@launch
-                resetCalendar.time = resetDate
-
-                // Set reset time to today
-                resetCalendar.set(Calendar.YEAR, currentTime.get(Calendar.YEAR))
-                resetCalendar.set(Calendar.MONTH, currentTime.get(Calendar.MONTH))
-                resetCalendar.set(Calendar.DAY_OF_MONTH, currentTime.get(Calendar.DAY_OF_MONTH))
-
-                // If reset time has passed, finish activity
-                if (currentTime.timeInMillis >= resetCalendar.timeInMillis) {
-                    Log.d(TAG, "Reset time has passed, finishing activity")
-                    finishBlockingActivity()
-                } else {
-                    // Calculate remaining time for display
-                    val remainingMs = resetCalendar.timeInMillis - currentTime.timeInMillis
-                    val remainingMinutes = remainingMs / (1000 * 60)
-                    Log.d(TAG, "Time until reset: $remainingMinutes minutes")
-
-                    // Update UI with countdown info
-                    val hours = remainingMinutes / 60
-                    val minutes = remainingMinutes % 60
-                    if (hours > 0) {
-                        resetTimeText.text = "Apps will be available in ${hours}h ${minutes}m (at $resetTime)"
-                    } else {
-                        resetTimeText.text = "Apps will be available in ${minutes}m (at $resetTime)"
+                val delayMillis = midnight.timeInMillis - now.timeInMillis
+                if (delayMillis > 0) {
+                    Log.i(TAG, "Scheduling activity to finish in $delayMillis ms (at midnight).")
+                    delay(delayMillis)
+                    if (!isActivityFinishing && !isDestroyed) {
+                        Log.i(TAG, "Midnight reached. Finishing activity.")
+                        finishBlockingActivity()
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error checking reset time", e)
-                resetTimeText.text = "Apps will be available again at $resetTime"
+                Log.e(TAG, "Error scheduling finish at midnight", e)
             }
         }
     }
@@ -210,34 +152,14 @@ class AppBlockedActivity : AppCompatActivity() {
     private fun makeEmergencyCall() {
         try {
             Log.d(TAG, "Emergency call button pressed")
-            val emergencyIntent = Intent(Intent.ACTION_CALL).apply {
-                data = Uri.parse("tel:911") // or use local emergency number
+            val dialerIntent = Intent(Intent.ACTION_DIAL).apply {
+                data = Uri.parse("tel:") // Open dialer without a number
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-
-            // Check if we have permission to make calls
-            if (checkSelfPermission(android.Manifest.permission.CALL_PHONE) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                startActivity(emergencyIntent)
-            } else {
-                // Fallback to dialer
-                val dialerIntent = Intent(Intent.ACTION_DIAL).apply {
-                    data = Uri.parse("tel:911")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(dialerIntent)
-            }
+            startActivity(dialerIntent)
         } catch (e: Exception) {
-            Log.e(TAG, "Error making emergency call", e)
-            // Fallback to opening dialer app
-            try {
-                val dialerIntent = Intent(Intent.ACTION_DIAL).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(dialerIntent)
-            } catch (e2: Exception) {
-                Log.e(TAG, "Error opening dialer", e2)
-            }
+            Log.e(TAG, "Error opening dialer", e)
+            Toast.makeText(this, "Could not open dialer.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -255,62 +177,37 @@ class AppBlockedActivity : AppCompatActivity() {
     }
 
     private fun finishBlockingActivity() {
-        if (isActivityFinishing) {
-            Log.d(TAG, "Activity already finishing, skipping")
-            return
-        }
-
+        if (isActivityFinishing) return
         isActivityFinishing = true
-        Log.d(TAG, "Finishing blocking activity")
 
-        // Notify service that blocking activity is finished
+        Log.i(TAG, "Finishing blocking activity and notifying service.")
         val intent = Intent("com.iconbiztechnologies1.childrenapp.BLOCKING_ACTIVITY_FINISHED")
         intent.setPackage(packageName)
         sendBroadcast(intent)
 
-        // Finish activity
         activityScope.launch {
-            delay(100) // Small delay to ensure broadcast is sent
-            finish()
+            delay(100)
+            if (!isDestroyed) {
+                finishAndRemoveTask()
+            }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        Log.d(TAG, "AppBlockedActivity resumed")
-
-        // Make sure this activity stays on top
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d(TAG, "AppBlockedActivity paused")
+        overridePendingTransition(0, 0)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "AppBlockedActivity destroyed")
-
-        // Clean up resources
+        Log.d(TAG, "AppBlockedActivity destroyed.")
         screenTimeListener?.remove()
-        activityScope.cancel()
+        activityScope.cancel() // Cancel all coroutines started by this activity
 
-        // Notify service that activity is finished if not already done
         if (!isActivityFinishing) {
             val intent = Intent("com.iconbiztechnologies1.childrenapp.BLOCKING_ACTIVITY_FINISHED")
             intent.setPackage(packageName)
             sendBroadcast(intent)
         }
     }
-
-    // Prevent activity from being killed by system
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        Log.d(TAG, "onTrimMemory called with level: $level")
-        // Don't allow system to kill this activity during blocking
-    }
-
-
-    
 }

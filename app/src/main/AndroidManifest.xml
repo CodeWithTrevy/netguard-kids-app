@@ -59,6 +59,7 @@
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
         <!-- Activities -->
         <activity
             android:name=".AppBlockedActivity1"

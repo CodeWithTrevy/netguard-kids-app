@@ -1,122 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
+    android:background="#E1F5FE"
     android:padding="24dp"
-    android:background="@color/blocked_background">
+    tools:context=".AppBlockedActivity">
 
-    <!-- App Icon or Logo -->
-    <ImageView
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:layout_marginBottom="32dp"
-        android:src="@drawable/ic_app_blocked"
-        android:contentDescription="App Blocked Icon"
-        app:tint="@color/blocked_icon_tint" />
-
-    <!-- Main Blocked Message -->
-    <TextView
-        android:id="@+id/blockedMessageText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="App Access Blocked"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:textColor="@color/blocked_text_primary"
-        android:gravity="center"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Description Text -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Your screen time limit has been reached. Apps are currently blocked to help you maintain healthy digital habits."
-        android:textSize="16sp"
-        android:textColor="@color/blocked_text_secondary"
-        android:gravity="center"
-        android:lineSpacingExtra="4dp"
-        android:layout_marginBottom="24dp" />
-
-    <!-- Reset Time Information -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@drawable/info_card_background"
-        android:padding="16dp"
-        android:layout_marginBottom="32dp">
+        android:layout_centerInParent="true"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
 
         <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_clock"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="8dp"
-            app:tint="@color/info_icon_tint" />
+            android:id="@+id/logoImage"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/ic_launcher_foreground"
+            app:tint="@color/design_default_color_primary" />
+
+        <TextView
+            android:id="@+id/blockedMessageText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Screen Time Limit Reached"
+            android:textAlignment="center"
+            android:textColor="@color/black"
+            android:textSize="24sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/resetTimeText"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Loading reset time..."
-            android:textSize="14sp"
-            android:textColor="@color/info_text"
-            android:gravity="center"
-            android:textStyle="italic" />
+            android:layout_marginTop="12dp"
+            android:text="Apps will be available again at 00:00"
+            android:textAlignment="center"
+            android:textColor="#333333"
+            android:textSize="18sp"
+            android:visibility="visible" />
 
-    </LinearLayout>
-
-    <!-- Button Container -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="16dp">
-
-        <!-- Emergency Call Button -->
-        <Button
-            android:id="@+id/emergencyCallButton"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="Emergency Call"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/white"
-            android:background="@drawable/emergency_button_background"
-            android:drawableStart="@drawable/ic_emergency_call"
-            android:drawablePadding="12dp"
-            android:gravity="center"
-            android:layout_marginBottom="12dp"
-            android:elevation="4dp" />
-
-        <!-- Home Button -->
         <Button
             android:id="@+id/homeButton"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Go to Home Screen"
-            android:textSize="14sp"
-            android:textColor="@color/home_button_text"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
             android:background="@drawable/home_button_background"
-            android:drawableStart="@drawable/ic_home"
-            android:drawablePadding="8dp"
-            android:gravity="center"
-            android:elevation="2dp" />
+            android:text="Go to Home Screen"
+            android:textColor="@android:color/white"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/emergencyCallButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/emergency_button_background"
+            android:text="Make Emergency Call"
+            android:textColor="@android:color/white"
+            android:textSize="16sp" />
 
     </LinearLayout>
 
-    <!-- Footer Text -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Contact your parent or guardian if you need assistance"
-        android:textSize="12sp"
-        android:textColor="@color/footer_text"
-        android:gravity="center"
-        android:layout_marginTop="24dp"
-        android:alpha="0.7" />
-
-</LinearLayout>
+</RelativeLayout>

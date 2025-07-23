@@ -14,7 +14,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -34,10 +33,23 @@ data class ScreenTimeSettings(
     val screenTimeTotalMinutes: Int
 )
 
+/**
+ * Represents the details of a device required for fetching usage data.
+ *
+ * @property deviceName The display name of the device.
+ * @property physicalId The unique physical identifier of the device.
+ * @property userId The ID of the user account associated with the device.
+ */
+data class DeviceDetails(
+    val deviceName: String,
+    val physicalId: String,
+    val userId: String
+)
+
+
 class DailyUsageActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "DailyUsageActivity"
-        // This key is still used by the PARENT'S app to view a specific child device.
         const val EXTRA_DEVICE_ID = "com.iconbiztechnologies1.childrenapp.DEVICE_ID"
     }
 
@@ -65,22 +77,18 @@ class DailyUsageActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSwipeRefresh()
 
-        // Initialize the data loading
         initializeDataLoading()
     }
 
     private fun initializeDataLoading() {
-        // --- THE CORE SOLUTION: Handle two ways of starting this activity ---
         val deviceDocId = intent.getStringExtra(EXTRA_DEVICE_ID)
 
         if (deviceDocId != null) {
-            // CASE 1: Started from Parent's device with a specific Document ID.
             Log.d(TAG, "Started with specific Document ID: $deviceDocId")
             currentDocId = deviceDocId
             currentPhysicalId = null
             loadDataForDevice(docId = deviceDocId, physicalId = null)
         } else {
-            // CASE 2: Started from Child's device (e.g., after setup). Get ID from local storage.
             Log.d(TAG, "No Document ID passed. Attempting to get local Physical Device ID.")
             val physicalDeviceId = DeviceIdentityManager.getDeviceID(this)
             if (physicalDeviceId != null) {
@@ -88,10 +96,8 @@ class DailyUsageActivity : AppCompatActivity() {
                 currentPhysicalId = physicalDeviceId
                 loadDataForDevice(docId = null, physicalId = physicalDeviceId)
             } else {
-                // This is a fatal error state - the app is not set up correctly.
                 Log.e(TAG, "FATAL ERROR: No Document ID passed and no local Physical ID found.")
                 showEmptyState("Device not configured.")
-                // Do not call finish() here if you want the user to see the empty state.
             }
         }
     }
@@ -117,13 +123,11 @@ class DailyUsageActivity : AppCompatActivity() {
 
     private fun setupSwipeRefresh() {
         swipeRefresh.setOnRefreshListener {
-            // ✅ Fixed: Refresh the data without recreating the activity
             refreshData()
         }
     }
 
     private fun refreshData() {
-        // Use the stored identifiers to reload data
         loadDataForDevice(docId = currentDocId, physicalId = currentPhysicalId)
     }
 
@@ -136,7 +140,7 @@ class DailyUsageActivity : AppCompatActivity() {
         swipeRefresh.isRefreshing = true
         activityScope.launch {
             try {
-                // Step 1: Get the device details (name and physical ID)
+                // Step 1: Get device details (including the crucial userId)
                 val deviceDetails = withContext(Dispatchers.IO) {
                     if (docId != null) {
                         fetchDeviceDetailsByDocId(docId)
@@ -150,21 +154,21 @@ class DailyUsageActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                val (deviceName, retrievedPhysicalId) = deviceDetails
-                supportActionBar?.title = deviceName
+                supportActionBar?.title = deviceDetails.deviceName
 
-                // Step 2 & 3: Use the retrieved physical ID to get usage and settings
+                // Step 2 & 3: Use retrieved IDs to get usage and settings
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
                 val appUsageData = withContext(Dispatchers.IO) {
-                    fetchTodaysAppUsage(retrievedPhysicalId, today)
+                    fetchTodaysAppUsage(deviceDetails.physicalId, today)
                 }
 
+                // CORRECTED: Pass both userId and physicalId to fetch settings from the correct path
                 val screenTimeSettings = withContext(Dispatchers.IO) {
-                    fetchScreenTimeSettings(retrievedPhysicalId)
+                    fetchScreenTimeSettings(deviceDetails.userId, deviceDetails.physicalId)
                 }
 
-                // Step 4: Update the UI with all the data
+                // Step 4: Update UI
                 updateUI(appUsageData, screenTimeSettings)
 
             } catch (e: CancellationException) {
@@ -178,41 +182,61 @@ class DailyUsageActivity : AppCompatActivity() {
         }
     }
 
-    // Fetches device details using the Firestore Document ID (for Parent's App)
-    private suspend fun fetchDeviceDetailsByDocId(docId: String): Pair<String, String>? = suspendCancellableCoroutine { continuation ->
+    /**
+     * Fetches device details using the Firestore Document ID.
+     * This now returns a `DeviceDetails` object containing the userId.
+     */
+    private suspend fun fetchDeviceDetailsByDocId(docId: String): DeviceDetails? = suspendCancellableCoroutine { continuation ->
         db.collection("Devices").document(docId).get()
             .addOnSuccessListener { document ->
                 if (document.exists()) {
                     val name = document.getString("device_name") ?: "Unknown Device"
                     val physicalId = document.getString("physical_device_id")
-                    if (physicalId != null) {
-                        continuation.resume(Pair(name, physicalId), null)
+                    val userId = document.getString("user_id") // Fetch the user_id
+
+                    if (physicalId != null && userId != null) {
+                        continuation.resume(DeviceDetails(name, physicalId, userId), null)
                     } else {
+                        Log.e(TAG, "Device document is missing 'physical_device_id' or 'user_id'")
                         continuation.resume(null, null)
                     }
                 } else {
                     continuation.resume(null, null)
                 }
             }
-            .addOnFailureListener { continuation.resume(null, null) }
+            .addOnFailureListener {
+                Log.e(TAG, "Failed to fetch device by doc ID", it)
+                continuation.resume(null, null)
+            }
     }
 
-    // Fetches device details using the Physical Device ID (for Child's App)
-    private suspend fun fetchDeviceDetailsByPhysicalId(physicalId: String): Pair<String, String>? = suspendCancellableCoroutine { continuation ->
+    /**
+     * Fetches device details using the Physical Device ID.
+     * This now returns a `DeviceDetails` object containing the userId.
+     */
+    private suspend fun fetchDeviceDetailsByPhysicalId(physicalId: String): DeviceDetails? = suspendCancellableCoroutine { continuation ->
         db.collection("Devices").whereEqualTo("physical_device_id", physicalId).limit(1).get()
             .addOnSuccessListener { documents ->
                 if (!documents.isEmpty) {
                     val doc = documents.documents[0]
                     val name = doc.getString("device_name") ?: "This Device"
-                    continuation.resume(Pair(name, physicalId), null)
+                    val userId = doc.getString("user_id") // Fetch the user_id
+
+                    if (userId != null) {
+                        continuation.resume(DeviceDetails(name, physicalId, userId), null)
+                    } else {
+                        Log.e(TAG, "Device document is missing 'user_id'")
+                        continuation.resume(null, null)
+                    }
                 } else {
                     continuation.resume(null, null)
                 }
             }
-            .addOnFailureListener { continuation.resume(null, null) }
+            .addOnFailureListener {
+                Log.e(TAG, "Failed to fetch device by physical ID", it)
+                continuation.resume(null, null)
+            }
     }
-
-    // --- NO CHANGES NEEDED FOR THE FUNCTIONS BELOW THIS LINE ---
 
     private suspend fun fetchTodaysAppUsage(physicalDeviceId: String, date: String): Map<String, Long> = suspendCancellableCoroutine { continuation ->
         db.collection("AppUsage")
@@ -229,30 +253,37 @@ class DailyUsageActivity : AppCompatActivity() {
                 continuation.resume(appUsageMap, null)
             }
             .addOnFailureListener { exception ->
-                Log.e(TAG, "Error fetching app usage data for device: $physicalDeviceId", exception)
+                Log.e(TAG, "Error fetching app usage for device: $physicalDeviceId", exception)
                 continuation.resume(emptyMap(), null)
             }
     }
 
-    private suspend fun fetchScreenTimeSettings(physicalDeviceId: String): ScreenTimeSettings? = suspendCancellableCoroutine { continuation ->
-        db.collection("ScreenTime")
-            .whereEqualTo("physical_device_id", physicalDeviceId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(1)
-            .get()
-            .addOnSuccessListener { documents ->
-                if (!documents.isEmpty) {
-                    val doc = documents.documents[0]
+    /**
+     * CORRECTED: Fetches screen time settings from the nested path matching ScreenTimeActivity.
+     * The signature is updated to accept both userId and physicalDeviceId.
+     */
+    private suspend fun fetchScreenTimeSettings(userId: String, physicalDeviceId: String): ScreenTimeSettings? = suspendCancellableCoroutine { continuation ->
+        // This is the correct, nested path used by ScreenTimeActivity.
+        val docRef = db.collection("ScreenTime").document(userId).collection("devices").document(physicalDeviceId)
+
+        docRef.get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
                     val settings = ScreenTimeSettings(
-                        screenTimeTotalMinutes = doc.getLong("screen_time_total_minutes")?.toInt() ?: 0
+                        screenTimeTotalMinutes = document.getLong("screen_time_total_minutes")?.toInt() ?: 0
                     )
                     continuation.resume(settings, null)
                 } else {
+                    Log.w(TAG, "No screen time settings document found at path: ${docRef.path}")
                     continuation.resume(null, null)
                 }
             }
-            .addOnFailureListener { continuation.resume(null, null) }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Error fetching screen time settings from path: ${docRef.path}", exception)
+                continuation.resume(null, null)
+            }
     }
+
 
     private fun updateUI(appUsageData: Map<String, Long>, screenTimeSettings: ScreenTimeSettings?) {
         if (appUsageData.isEmpty()) {
@@ -307,7 +338,7 @@ class DailyUsageActivity : AppCompatActivity() {
             appName = packageManager.getApplicationLabel(appInfo).toString()
             appIcon = packageManager.getApplicationIcon(appInfo)
         } catch (e: PackageManager.NameNotFoundException) {
-            // App is not installed on the parent's device, use package name
+            // App not installed, use package name
         }
         val percentage = if (totalTimeMs > 0) (usageTimeMs.toFloat() / totalTimeMs) * 100f else 0f
         return AppUsageItem(packageName, appName, usageTimeMs, appIcon, percentage)
